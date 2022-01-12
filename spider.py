@@ -12,6 +12,7 @@ import re
 from datetime import date
 
 ICS_FILE_NAME = "china.holiday.ics"
+ICS_COMPENSATORY_FILE_NAME = "china.compensatory.ics"
 JSON_FILE_NAME = "china.holiday.json"
 ICS_CURRENT_YEARS_LIST_NAME = "ICSCURRENTYEARS"
 
@@ -208,16 +209,18 @@ def get_current_log_years():
 
 def gen_ics_res_str(res: list[Tuple[str, list[Holiday]]]):
     """生成 ics 文件"""
-    cal = Calendar()
-    cal.extra.append(
-        ContentLine(
-            name=ICS_CURRENT_YEARS_LIST_NAME, value=",".join([r[0] for r in res])
-        )
+
+    current_years = ContentLine(
+        name=ICS_CURRENT_YEARS_LIST_NAME, value=",".join([r[0] for r in res])
     )
+
+    holiday_cal, compensatory_cal = Calendar(), Calendar()
+    holiday_cal.extra.append(current_years)
+    compensatory_cal.extra.append(current_years)
 
     for (_, holidays) in res:
         for holiday in holidays:
-            cal.events.add(
+            holiday_cal.events.add(
                 Event(
                     name=holiday.holiday_name,
                     begin=holiday.holiday_start_date,
@@ -225,7 +228,14 @@ def gen_ics_res_str(res: list[Tuple[str, list[Holiday]]]):
                 )
             )
 
-    return str(cal)
+            if holiday.compensatory is not None:
+                for compensatory_date in holiday.compensatory:
+                    compensatory_cal.events.add(
+                        Event(
+                            name=f"{holiday.holiday_name}.补假", begin=compensatory_date
+                        )
+                    )
+    return str(holiday_cal), str(compensatory_cal)
 
 
 def gen_json_res_str(res: list[Tuple[str, list[Holiday]]]):
@@ -241,8 +251,12 @@ if __name__ == "__main__":
         print("无新增节假日")
         sys.exit(0)
     result = parse_holiday_context(res)
-    json_res, cal_res = gen_json_res_str(result), gen_ics_res_str(result)
+    json_res, (holiday_cal_res, compensatory_cal_res) = gen_json_res_str(
+        result
+    ), gen_ics_res_str(result)
     with open(ICS_FILE_NAME, "w", encoding="utf-8") as file:
-        file.write(cal_res)
+        file.write(holiday_cal_res)
+    with open(ICS_COMPENSATORY_FILE_NAME, "w", encoding="utf-8") as file:
+        file.write(compensatory_cal_res)
     with open(JSON_FILE_NAME, "w", encoding="utf-8") as file:
         file.write(json_res)
