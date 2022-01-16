@@ -1,9 +1,6 @@
-name: Python Package using Conda
+name: Update China Holiday.
 
 on: 
-   push:
-    branches: 
-      - master
    schedule:
      - cron: '0 14 * * *'
 
